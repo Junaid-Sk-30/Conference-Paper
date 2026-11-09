@@ -7,7 +7,6 @@
 **Authors:** Shaik Junaid$^1$, Sk. Valijan$^1$, and Dr. Nadiminti Nagamani$^2$  
 $^1$Department of Data Science, VIT-AP University, Amaravati, Andhra Pradesh, India  
 $^2$School of Advanced Science, VIT-AP University, Amaravati, Andhra Pradesh, India  
-**Contact:** `shaik.junaid@vitap.ac.in`  
 
 ---
 
