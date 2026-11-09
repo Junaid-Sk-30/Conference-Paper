@@ -1,0 +1,4 @@
+Architecture,Val Loss (Ep 5),R2_OOS (%),MAE,Dir Acc (%),Turnover,Gross Sharpe,Net Sharpe (5 bps)
+Dense (Unconstrained),0.672989,-2.72%,0.0121,53.03%,1.42,0.807,-0.503
+Correlation Gated,0.674206,-2.67%,0.0121,52.20%,1.43,1.017,-0.265
+Soft Causal Routed (PCMCI+),0.675015,-2.87%,0.0121,52.57%,1.43,1.005,-0.263

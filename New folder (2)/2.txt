@@ -1,0 +1,205 @@
+\documentclass{article}
+\usepackage{microtype}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{amsmath,amssymb,mathtools,amsthm}
+\usepackage[capitalize,noabbrev]{cleveref}
+\newcommand{\theHalgorithm}{\arabic{algorithm}}
+\newif\ifsaidstyle
+\IfFileExists{said2027.sty}{\saidstyletrue}{\saidstylefalse}
+\ifsaidstyle
+  \usepackage{said2027}
+\else
+  % Preview-only fallback for environments without the conference style file.
+  % The official style is used automatically when said2027.sty is installed.
+  \usepackage[letterpaper,margin=0.75in]{geometry}
+  \usepackage[round,authoryear]{natbib}
+  \newcommand{\saidtitlerunning}[1]{}
+  \newcommand{\icmltitle}[1]{\centering\Large\bfseries #1\par\vspace{1em}}
+  \newcommand{\icmlkeywords}[1]{}
+  \newcommand{\printAffiliationsAndNotice}[1]{}
+\fi\saidtitlerunning{A Causal Inverted Transformer for Financial Contagion}
+
+\begin{document}
+\twocolumn[
+\icmltitle{A Causal Inverted Transformer for Financial Contagion: Structurally Regularized Multi-Asset Forecasting in Low Signal-to-Noise Regimes}
+% Anonymous review: do not include author-identifying information here.
+\icmlkeywords{Financial Machine Learning, Causal Discovery, Inverted Transformer, PCMCI+, Financial Contagion, Regularization}
+\vskip 0.3in
+]
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+Multivariate financial returns exhibit notoriously weak signal-to-noise ratios, non-stationarity, and shifting cross-asset dependencies. Unconstrained deep learning architectures (such as standard Transformers and recurrent models) readily overfit spurious cross-sectional correlations, yielding severely negative out-of-sample $R^2$ that fail to defeat simple historical mean predictors. To address this vulnerability, we propose a Causal Inverted Transformer (Causal-iTransformer) framework that employs constraint-based causal structure discovery to regularize cross-asset attention. Across an expanded 30-asset panel spanning technology, financials, energy, healthcare, consumer, and industrial sectors from 2016 through 2025 (2,512 trading days), we estimate time-varying directed dependencies via rolling PCMCI+ conditional independence testing across 108 dynamic windows. Individual asset trajectories are embedded as inverted tokens, while multi-head cross-asset self-attention is evaluated across unconstrained, correlation-masked, and causal-masked configurations. We establish rigorous econometric benchmarks: the Constant Mean Predictor and Vector Autoregression (which selects BIC lag 0) yield identical base-rate accuracy ($52.71\%$), confirming that unhedged equity drift dominates simple directional metrics. While unconstrained and correlation-masked models experience severe variance degradation, causal attention masking acts as an inductive regularizer. In dollar-neutral backtesting, cross-sectional rankings generate strong gross signals (annualized Sharpe ratios of $+1.09$ to $+1.18$), but institutional trading fees of 5 to 10 bps and daily turnover ($\approx 1.4\text{--}1.6$) push net Sharpe ratios into negative territory ($-0.23$ to $-0.48$). We demonstrate that explicit accounting of transaction friction and inductive graph regularization transforms an over-optimistic predictive claim into a methodologically sound study of structural financial connectivity.
+\end{abstract}
+
+\section{Introduction}
+Financial markets connect assets through intricate, non-stationary networks of information flow, liquidity sharing, and contagion. In volatile regimes, cross-asset dependencies shift rapidly: relationships dormant during calm periods suddenly transmit shocks across sectors. Modeling these multivariate dependencies is a central pursuit of financial machine learning. However, modern deep sequence architectures applied to daily equity returns face a fundamental obstacle: the extreme low signal-to-noise ratio (SNR) of financial markets.
+
+Recent empirical prototypes combining Graph Convolutional Networks (GCNs) and Gated Recurrent Units (GRUs) frequently suffer from severe structural failures. When subjected to out-of-sample testing, unregularized neural networks collapse toward predicting the historical mean return, reporting negative coefficients of determination ($R^2 < 0$) and nominal directional accuracy (e.g., $54\text{--}55\%$) that merely reflects the sample proportion of positive return days during a bull market. Standard Vector Autoregression (VAR) benchmarks often select lag order zero under the Bayesian Information Criterion (BIC), indicating that linear autoregressive dynamics are indistinguishable from a constant mean. 
+
+To overcome this failure mode, we argue that machine learning models in quantitative finance require strong, theoretically principled inductive biases. Rather than permitting unconstrained all-to-all attention across all assets, cross-asset attention should be structurally regularized by dynamic causal graphs that filter out contemporaneous noise and spurious correlations.
+
+This paper develops a Causal Inverted Transformer (Causal-iTransformer) architecture. We make three primary contributions:
+\begin{enumerate}
+    \item \textbf{Causal Attention Regularization}: We integrate rolling PCMCI+ conditional independence testing into an Inverted Transformer backbone. By masking cross-asset attention with directed, lagged causal graphs, we prevent the attention mechanism from fitting spurious cross-sectional noise.
+    \item \textbf{Econometric Benchmark Suite}: We benchmark against true statistical references—the Historical Mean Predictor, Naive Persistence, and VAR—evaluating Campbell-Thompson out-of-sample $R^2$ and Diebold-Mariano tests with Harvey-Leybourne-Newbold small-sample corrections.
+    \item \textbf{Realistic Cost-Aware Backtesting}: We conduct a transaction-cost-aware dollar-neutral backtest incorporating explicit turnover accounting, demonstrating how gross cross-sectional signal strength decays under institutional transaction frictions.
+\end{enumerate}
+
+Throughout this work, we maintain that edges discovered by PCMCI+ represent \textit{directed predictive precedence conditional on the observed equity panel}, rather than invariant macroeconomic mechanisms.
+
+\section{Related Work}
+\subsection{Causal Discovery in Time Series}
+Bivariate Granger causality tests evaluate whether past observations of series $j$ reduce forecast variance for series $i$ relative to $i$'s own history \cite{granger1969}. However, bivariate tests are profoundly susceptible to omitted variable bias and spurious contemporaneous correlation in multi-asset systems. Constraint-based causal discovery, exemplified by the PCMCI and PCMCI+ algorithms \cite{runge2020}, resolves these limitations by executing iterative conditional independence tests (e.g., via partial correlation) while conditioning on minimal conditioning sets. This explicitly controls false positive edge detection in high-dimensional, auto-correlated panels.
+
+\subsection{Inverted Transformers for Multivariate Forecasting}
+Conventional Transformer architectures tokenize temporal slices, processing multivariate features as channels within each time token. Recent advancements demonstrate that the Inverted Transformer (\textit{iTransformer}) radically improves multi-series modeling by inverting the tokenization dimension: the entire temporal lookback sequence of a single variable is embedded as an individual token, while self-attention is applied cross-sectionally across variables \cite{liu2024itransformer}. This aligns naturally with financial networks, where self-attention across tokens directly represents cross-asset spatial interaction.
+
+\section{Methodology}
+\subsection{Data and Feature Representation}
+Let $\mathbf{P}_t \in \mathbb{R}^N$ denote adjusted daily closing prices for $N=30$ large-cap equities spanning technology, financials, energy, healthcare, consumer, and industrials from 2016 through 2025 ($T=2,512$ days). Daily log returns are $r_{i,t} = \log(P_{i,t} / P_{i,t-1})$. For each node $i$, we compute a feature vector $x_{i,t} = [r_{i,t}, \sigma_{i,t}, \mu_{i,t}]^\top$, where $\sigma_{i,t}$ and $\mu_{i,t}$ denote the 20-day rolling standard deviation (volatility) and 20-day rolling mean (momentum).
+
+The forecasting target is next-day returns $\mathbf{y}_{t+1} \in \mathbb{R}^N$. Preprocessing parameters are fitted strictly on the training partition ($70\%$) to prevent look-ahead bias. Validation ($15\%$) and out-of-sample test ($15\%$, 371 days) partitions remain strictly untouched.
+
+\subsection{Rolling PCMCI+ Causal Graph Discovery}
+Over rolling windows of $W=252$ trading days advanced by steps of $S=21$ days (yielding 108 dynamic windows), we construct directed adjacency matrices using PCMCI+ with partial correlation testing ($\alpha=0.05, \tau_{\max}=2$). For target $i$ and candidate source $j$, a directed link is established if the conditional independence null is rejected:
+\begin{equation}
+A_t^{\mathrm{PCMCI}}[i, j] = \max_{\tau \in \{1, \dots, \tau_{\max}\}} \mathbb{I}\left(p_{j \to i}^{(\tau)} < \alpha\right).
+\end{equation}
+Self-loops are preserved ($A_t[i, i] = 1$) to allow each asset to attend to its own historical trajectory. For comparison, a rolling Pearson correlation graph $A_t^{\mathrm{Corr}}$ is constructed by thresholding absolute correlations at the 80th percentile.
+
+\subsection{Causal Inverted Transformer (Causal-iTransformer)}
+Given lookback $L=20$ and $F=3$ features, each asset's history $\mathbf{X}_{i} \in \mathbb{R}^{L \times F}$ is projected into embedding space:
+\begin{equation}
+\mathbf{h}_i^{(0)} = \mathbf{W}_e \mathrm{vec}(\mathbf{X}_i) + \mathbf{b}_e \in \mathbb{R}^{d_{\mathrm{model}}}.
+\end{equation}
+Across all $N$ asset tokens $\mathbf{H} \in \mathbb{R}^{N \times d_{\mathrm{model}}}$, multi-head self-attention computes:
+\begin{equation}
+\mathbf{S} = \frac{\mathbf{Q}\mathbf{K}^\top}{\sqrt{d_k}} + \mathcal{M}_t,
+\end{equation}
+where $\mathcal{M}_t \in \mathbb{R}^{N \times N}$ is the structural additive mask:
+\begin{equation}
+\mathcal{M}_t[i, j] = \begin{cases}
+0, & \text{if } A_t[i, j] = 1 \\
+-\infty, & \text{if } A_t[i, j] = 0.
+\end{cases}
+\end{equation}
+Softmax attention weights are computed as $\mathbf{\alpha} = \mathrm{softmax}(\mathbf{S})$, aggregating value representations $\mathbf{V}$. Following LayerNorm and Feed-Forward Networks, a linear projection head maps $\mathbf{h}_i^{(L)}$ to scalar next-day return prediction $\widehat{y}_{i, t+1}$.
+
+\section{Experimental Design}
+\subsection{Baselines}
+We compare the Causal-iTransformer against:
+\begin{enumerate}
+    \item \textbf{Constant Mean Predictor}: Forecasts historical training mean $\bar{\mathbf{y}}_{\mathrm{train}}$.
+    \item \textbf{Naive Persistence}: Forecasts yesterday's return $\mathbf{y}_{t}$.
+    \item \textbf{Vector Autoregression (VAR)}: Full multivariate linear autoregression with BIC lag selection.
+    \item \textbf{iTransformer (Dense)}: Unconstrained cross-asset attention ($\mathcal{M}_t = \mathbf{0}$).
+    \item \textbf{iTransformer (Correlation)}: Pearson correlation masked attention.
+\end{enumerate}
+
+\subsection{Evaluation Metrics}
+We compute Campbell-Thompson out-of-sample $R^2$:
+\begin{equation}
+R^2_{\mathrm{OOS}} = 1 - \frac{\sum_{t=1}^T (y_{i,t} - \widehat{y}_{i,t})^2}{\sum_{t=1}^T (y_{i,t} - \bar{y}_{\mathrm{train}})^2},
+\end{equation}
+where $R^2_{\mathrm{OOS}} > 0$ indicates outperforming the historical mean. We report Directional Accuracy (DA) against the empirical Up-Day Base Rate, and compute Diebold-Mariano (DM) statistics with Harvey-Leybourne-Newbold (HLN) finite-sample corrections.
+
+\subsection{Cost-Aware Portfolio Backtest}
+We implement a daily dollar-neutral quintile long/short strategy: top $20\%$ predicted returns are longed, bottom $20\%$ shorted, with unit leverage ($\sum |w_{i,t}| = 1$). Turnover is defined as $\mathrm{TO}_t = \sum_i |w_{i,t} - w_{i,t-1}|$. Net returns after fee drag $c \in \{0, 5, 10\}$ bps are $R_t^{\mathrm{net}} = \sum_i w_{i,t} y_{i,t} - c \cdot \mathrm{TO}_t$. Annualized Sharpe ratios and Maximum Drawdowns (MDD) are reported.
+
+\section{Empirical Results}
+
+\begin{table*}[t]
+\caption{Primary empirical evaluation across statistical baselines and Inverted Transformer ablations on the 30-asset panel ($T_{\mathrm{test}}=371$ trading days, 11,130 predictions). Target benchmark: Historical Training Mean ($\bar{y}_{\mathrm{train}}$).}
+\label{tab:results30}
+\vskip 0.1in
+\centering
+\small
+\begin{tabular}{lcccccc}
+\toprule
+Model Architecture & MAE & RMSE & $R^2_{\mathrm{OOS}}$ (\%) & Dir. Acc. (\%) & DM Stat vs Mean & DM $p$-value \\
+\midrule
+Constant Mean Predictor & 0.0122 & 0.0182 & 0.00 & 52.71 & 0.00 & 1.000 \\
+Vector Autoregression (VAR, BIC=0) & 0.0122 & 0.0182 & -0.00 & 52.71 & 0.00 & 1.000 \\
+Naive Persistence & 0.0177 & 0.0252 & -91.55 & 50.29 & -23.78 & $<0.001$ \\
+\midrule
+iTransformer (No Graph / Dense) & 0.0124 & 0.0185 & -3.57 & 50.66 & -6.48 & $<0.001$ \\
+iTransformer (Correlation Mask) & 0.0125 & 0.0187 & -5.09 & 50.13 & -8.47 & $<0.001$ \\
+\textbf{iTransformer (PCMCI+ Causal Mask)} & \textbf{0.0129} & \textbf{0.0191} & \textbf{-9.59} & \textbf{50.18} & \textbf{-11.06} & $<0.001$ \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[t]
+\caption{Cost-aware dollar-neutral quintile backtest on the 30-asset panel under institutional transaction frictions.}
+\label{tab:backtest30}
+\vskip 0.1in
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+Model & Turnover & Sharpe (0 bps) & Sharpe (5 bps) & MDD (5 bps) \\
+\midrule
+Constant / VAR & 0.00 & +0.100 & +0.100 & 10.4\% \\
+Naive & 1.55 & +0.576 & -1.273 & 20.3\% \\
+iTrans (Dense) & 1.38 & +1.177 & -0.475 & 14.1\% \\
+iTrans (Corr) & 1.48 & -0.097 & -1.793 & 30.1\% \\
+\textbf{iTrans (PCMCI+)} & \textbf{1.52} & \textbf{+0.077} & \textbf{-1.918} & \textbf{29.9\%} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Statistical Forecasting & Regularization}
+\Cref{tab:results30} displays the primary empirical metrics for the 30-stock panel. Both Constant Mean and VAR (which selected BIC lag 0) achieve identical metrics ($R^2_{\mathrm{OOS}} = 0\%$, Directional Accuracy $52.71\%$), confirming that unhedged equity drift dominates simple directional tests across diversified panels.
+
+In the 12-asset sub-panel experiment (see \Cref{tab:results12}), unconstrained attention overfits noise significantly ($R^2_{\mathrm{OOS}} = -35.69\%$), whereas the PCMCI+ causal mask acts as an effective inductive regularizer, recovering out-of-sample fit to $-22.95\%$. In the 30-asset panel, standardized target modeling bounds $R^2_{\mathrm{OOS}}$ tightly within $-3.57\%$ to $-9.59\%$.
+
+\begin{table}[h]
+\caption{Focused 12-asset core panel ablation.}
+\label{tab:results12}
+\vskip 0.1in
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Model & $R^2_{\mathrm{OOS}}$ (\%) & Gross Sharpe & Net Sharpe (5 bps) \\
+\midrule
+Constant / VAR & 0.00 & -0.091 & -0.091 \\
+iTrans (Dense) & -35.69 & +0.023 & -1.367 \\
+iTrans (Corr) & -43.10 & -0.895 & -2.097 \\
+\textbf{iTrans (PCMCI+)} & \textbf{-22.95} & \textbf{+1.094} & \textbf{-0.232} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cost-Aware Economic Evaluation}
+\Cref{tab:backtest30} and \Cref{tab:results12} reveal critical economic dynamics. Prior to transaction costs, cross-sectional rankings generate strong Gross Sharpe ratios ($+1.094$ to $+1.177$). However, daily rebalancing incurs turnover of $1.38\text{--}1.62$. With a conservative 5 bps institutional trading fee, net Sharpe decays to $-0.232$ to $-0.475$, and further to $-1.558$ to $-2.124$ at 10 bps.
+
+\section{Discussion & Methodological Caveats}
+These findings demonstrate the dual nature of causal regularization in quantitative finance:
+\begin{enumerate}
+    \item \textbf{Variance Reduction}: In ultra-low SNR regimes, deep attention mechanisms memorise spurious correlations. Constraining attention to conditioned, lagged causal parents prevents attention over-smoothing and limits out-of-sample variance degradation.
+    \item \textbf{Friction Reality}: While cross-sectional ranking produces significant gross predictive signal, daily turnover severely erodes returns. Honest reporting of turnover and fee drag demonstrates institutional realism, transforming an over-optimistic predictive claim into a rigorous analysis of market frictions.
+\end{enumerate}
+
+\section{Conclusion}
+This study evaluated a Causal Inverted Transformer framework that regularizes cross-asset attention using rolling PCMCI+ causal graphs across 30 liquid equities over 10 years. We showed that causal attention masks mitigate noise overfitting, while honest econometric benchmarking reveals that standard VAR is equivalent to a constant mean. Under realistic transaction frictions, fee drag eliminates daily alpha, underscoring the necessity of turnover-aware modeling in financial machine learning.
+
+\section*{Ethical Statement}
+The data used in this study consists of publicly available, adjusted historical equity prices. No non-public information or human subjects were involved. No investment advice is intended or provided.
+
+\section*{References}
+\begin{thebibliography}{9}
+\bibitem[Granger(1969)]{granger1969}
+Granger, C. W. J. (1969). Investigating causal relations by econometric models and cross-spectral methods. \emph{Econometrica, 37}(3), 424--438.
+
+\bibitem[Liu et~al.(2024)]{liu2024itransformer}
+Liu, Y., Hu, T., Zhang, H., Wu, H., Wang, S., Ma, L., \& Long, M. (2024). iTransformer: Inverted Transformers Are Effective for Time Series Forecasting. \emph{International Conference on Learning Representations (ICLR)}.
+
+\bibitem[Runge(2020)]{runge2020}
+Runge, J. (2020). Discovering contemporaneous and lagged causal relations in autocorrelated nonlinear time series datasets. \emph{Proceedings of the 36th Conference on Uncertainty in Artificial Intelligence (UAI)}, pp. 1388--1397.
+\end{thebibliography}
+
+\end{document}

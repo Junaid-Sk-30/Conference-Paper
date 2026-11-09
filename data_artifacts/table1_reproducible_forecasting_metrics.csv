@@ -1,0 +1,9 @@
+Model Architecture,MAE,RMSE,R2_OOS (%),Dir_Acc (%),Base_Rate (%),Panel DM Stat,DM p-value
+Constant Mean Predictor,0.0120,0.0181,0.00%,52.66%,52.63%,0.00,1.000
+Vector Autoregression (VAR),0.0120,0.0181,-0.00%,52.66%,52.63%,0.00,1.000
+Naive Persistence,0.0175,0.0250,-90.72%,50.51%,52.63%,-10.62,0.000
+iTransformer (Dense / No Graph),0.0123 ± 0.0000,0.0183 ± 0.0000,-2.63% ± 0.18%,50.77% ± 0.41%,52.63%,-1.87 ± 0.12,0.068
+iTransformer (Correlation Mask),0.0123 ± 0.0000,0.0183 ± 0.0000,-2.90% ± 0.17%,50.88% ± 0.25%,52.63%,-2.27 ± 0.12,0.027
+iTransformer (PCMCI+ Causal Mask),0.0122 ± 0.0000,0.0183 ± 0.0000,-2.35% ± 0.10%,50.64% ± 0.27%,52.63%,-2.02 ± 0.12,0.048
+Soft Causal iTransformer (Linear Head),0.0123 ± 0.0000,0.0184 ± 0.0000,-3.24% ± 0.22%,50.36% ± 0.26%,52.63%,-1.92 ± 0.31,0.090
+Soft Causal TKAN (Full Proposed Model),0.0124 ± 0.0000,0.0185 ± 0.0001,-4.54% ± 0.64%,50.04% ± 0.50%,52.63%,-3.45 ± 0.37,0.003

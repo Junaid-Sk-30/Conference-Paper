@@ -1,0 +1,9 @@
+Strategy,Mean Turnover,Gross Sharpe (0 bps),Net Sharpe (5 bps),Net Sharpe (10 bps),Max Drawdown (5 bps)
+Constant Mean Predictor,0.00,0.236,0.236,0.236,10.4%
+Vector Autoregression (VAR),0.00,0.236,0.236,0.236,10.4%
+Naive Persistence,1.55,0.541,-1.325,-3.192,18.6%
+iTransformer (Dense / No Graph),1.35,0.725 ± 0.504,-0.839 ± 0.486,-2.401 ± 0.472,17.6%
+iTransformer (Correlation Mask),1.43,0.790 ± 0.193,-0.910 ± 0.155,-2.605 ± 0.133,17.0%
+iTransformer (PCMCI+ Causal Mask),1.44,0.643 ± 0.138,-1.104 ± 0.124,-2.852 ± 0.126,19.4%
+Soft Causal iTransformer (Linear Head),1.42,1.455 ± 0.177,-0.321 ± 0.145,-2.092 ± 0.134,14.0%
+Soft Causal TKAN (Full Proposed Model),1.32,0.191 ± 0.157,-1.403 ± 0.117,-2.993 ± 0.089,22.1%
