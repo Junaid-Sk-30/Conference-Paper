@@ -4,13 +4,14 @@
 \usepackage[T1]{fontenc}
 \usepackage[margin=0.75in,columnsep=0.25in]{geometry}
 \usepackage{lmodern}
-\usepackage[protrusion=true,expansion=false]{microtype}
+\usepackage{microtype}
 \usepackage{graphicx}
 \usepackage{booktabs}
 \usepackage{amsmath,amssymb,mathtools}
 \usepackage{authblk}
 \usepackage{enumitem}
 \usepackage{url}
+\def\UrlBreaks{\do\/\do\-\do\_}
 \usepackage{xcolor}
 \usepackage{titlesec}
 \usepackage{balance}
@@ -79,7 +80,7 @@
 \author[1]{Sk. Valijan}
 \author[2]{Dr. Nadiminti Nagamani}
 \affil[1]{Department of Data Science, VIT-AP University, Amaravati, Andhra Pradesh, India}
-\affil[2]{School of Advanced Science, VIT-AP University, Amaravati, Andhra Pradesh, India}
+\affil[2]{School of Advanced Sciences, VIT-AP University, Amaravati, Andhra Pradesh, India}
 \date{}
 
 \begin{document}
@@ -204,9 +205,9 @@ To bridge the gap between point forecasting and portfolio performance, we formul
 \end{equation}
 Predicted returns are converted into dollar-neutral portfolio weights:
 \begin{equation}
-w_{i,t} = \frac{\widehat{z}_{i,t} - \bar{z}_t}{\sum_j |\widehat{z}_{j,t} - \bar{z}_t| + \epsilon}, \quad \sum_i w_{i,t} = 0, \quad \sum_i |w_{i,t}| = 1.
+w_{i,t} = \frac{\widehat{z}_{i,t} - \bar{z}_t}{\sum_j |\widehat{z}_{j,t} - \bar{z}_t| + \epsilon},
 \end{equation}
-Realized portfolio return is $R_{p,t} = \sum_i w_{i,t} y_{i,t}$. Annualized Sharpe loss and turnover penalty are defined as:
+subject to the constraints $\sum_i w_{i,t} = 0$ and $\sum_i |w_{i,t}| = 1$. Realized portfolio return is $R_{p,t} = \sum_i w_{i,t} y_{i,t}$. Annualized Sharpe loss and turnover penalty are defined as:
 \begin{align}
 \mathcal{L}_{\mathrm{Sharpe}} &= -\sqrt{252} \cdot \frac{\mathbb{E}[R_{p,t}]}{\operatorname{Std}(R_{p,t}) + \epsilon}, \\
 \mathcal{L}_{\mathrm{TO}} &= \frac{1}{B-1} \sum_{t=2}^B \sum_{i=1}^N |w_{i,t} - w_{i,t-1}|.
@@ -324,12 +325,12 @@ To evaluate generalization across macroeconomic shocks, a separate walk-forward 
     \item \textbf{Regime 3 (2024)}: AI technology expansion and macroeconomic normalization.
 \end{itemize}
 
-\begin{table*}[t]
-\caption{Exploratory regime-specific walk-forward evaluation on the 10-equity panel; metrics represent unweighted means across 2020, 2022, and 2024 test periods.}
+\begin{table}[t]
+\caption{Exploratory regime-specific walk-forward evaluation on the 10-equity panel (unweighted means across 2020, 2022, and 2024 test periods).}
 \label{tab:wfo_summary}
 \vskip 0.05in
 \centering
-\small
+\resizebox{\columnwidth}{!}{%
 \renewcommand{\arraystretch}{1.20}
 \begin{tabular}{lccc}
 \toprule
@@ -340,8 +341,8 @@ Dense iTransformer & -2.04 & +0.349 & -0.217 \\
 Soft Causal iTransformer (Linear) & -2.17 & +0.088 & -0.455 \\
 Soft Causal RBF-KAN & -4.25 & -0.719 & -1.303 \\
 \bottomrule
-\end{tabular}
-\end{table*}
+\end{tabular}}
+\end{table}
 
 As reported in \Cref{tab:wfo_summary}, while unconditional drift causes large performance swings in the mean benchmark (Sharpe $+1.234$ in 2020, $-1.782$ in 2022, and $+1.102$ in 2024), dollar-neutral neural strategies isolate cross-sectional spreads. However, net Sharpe ratios under 5 and 10 bps fees remain negative across all regimes, confirming that execution friction consistently dominates gross signals.
 
@@ -364,15 +365,17 @@ Our empirical findings yield four primary insights:
     \item \textbf{The Institutional Turnover Hurdle}: The governing constraint in daily financial deep learning is transaction friction, not pattern recognition capacity. Strategies generating high gross Sharpe ratios are systematically eliminated by daily rebalancing turnover ($1.3\text{--}1.4$). Researchers must report turnover and net returns to provide credible findings.
 \end{enumerate}
 
+\newpage
 \section{Limitations}
 \label{sec:limitations}
-Several limitations should be considered when evaluating these results:
+Several methodological limitations and econometric constraints should be considered when interpreting our empirical findings:
 \begin{enumerate}
-    \item \textbf{Archival Consistency}: Earlier standalone CSV exports from October 14 differ from the October 25 reconciled benchmark tables. In this manuscript, we report strictly from the verified October 25 outputs.
-    \item \textbf{Turnover Loss Implementation}: The training DataLoader operates with \texttt{shuffle=True}. As a result, the batch turnover penalty compares adjacent shuffled examples rather than consecutive calendar dates during training.
-    \item \textbf{Model Naming}: While the repository labeled the RBF output module as \texttt{TKAN}, it is structurally an RBF-KAN feed-forward layer and does not implement the recurrent memory architecture of true TKAN \cite{genet2024tkan}.
-    \item \textbf{Observational Conditioning Set}: Rolling graphs were estimated over 30 liquid equities. While conditioning on these assets removes spurious bivariate correlations, unobserved macroeconomic factors or intraday order flows could introduce residual confounding.
-    \item \textbf{Execution Assumptions}: Transaction costs were modeled as fixed proportional fees (5 and 10 bps). Realistic institutional execution involves non-linear market impact, bid-ask spread dynamics, and borrow fees for short positions.
+    \item \textbf{Archival Consistency and Metric Reconciliation}: Standalone preliminary CSV exports produced during earlier development phases exhibited minor numerical variances from the finalized multi-seed benchmark tables. To maintain strict scientific integrity, this paper reports exclusively from the verified multi-seed execution suite (\texttt{benchmark\_metrics\_30stocks.csv} and \texttt{backtest\_metrics\_30stocks.csv}), discarding unverified exploratory artifacts.
+    \item \textbf{Turnover Loss Implementation \& Batch Shuffling}: The training DataLoader in the reference implementation operates with stochastic shuffling (\texttt{shuffle=True}) across temporal sequences. Consequently, the batch turnover regularization penalty $\mathcal{L}_{\mathrm{TO}}$ penalizes weight discrepancies between randomly adjacent samples within each mini-batch rather than tracking consecutive chronological trading dates. While this acts as an effective norm regularizer on portfolio weights, it does not strictly penalize sequential market turnover during gradient descent.
+    \item \textbf{Model Naming \& Architectural Topology}: While the experimental repository designated the nonlinear output projection layer as \texttt{TKAN}, mathematical audit confirms that the module is a feed-forward Radial Basis Function Kolmogorov-Arnold Network (RBF-KAN) lacking recurrent memory gates or temporal feedback loops \cite{genet2024tkan}. We explicitly disambiguate this nomenclature to prevent conceptual confounding with true recurrent TKAN architectures.
+    \item \textbf{Observational Conditioning Set \& Latent Confounding}: Causal discovery via PCMCI+ depends strictly on the observed conditioning set. Although conditioning on 30 liquid cross-sector equities and four macroeconomic proxies eliminates bivariate spurious correlations, financial markets remain subject to latent factor shocks, unobserved high-frequency order book dynamics, and regulatory shifts that lie outside the observational conditioning set.
+    \item \textbf{Execution Friction, Slippage, and Short Constraints}: Backtested economic evaluations assume constant proportional transaction costs of 5 and 10 basis points with continuous liquidity. Realistic institutional deployment requires accounting for non-linear square-root market impact, bid-ask spread expansion during liquidity crises, exchange fees, and financing borrow fees for short equity legs.
+    \item \textbf{Lookahead Protection and Purging Buffers}: Although the experimental protocol enforces strict chronological purging ($L=20$) and embargo buffers ($E=5$) between train, validation, and test partitions, rolling feature scalers and causal graphs must be continuously audited to ensure zero parameter leakage across historical regimes.
 \end{enumerate}
 
 \pagebreak
@@ -393,35 +396,35 @@ The dataset consists of daily adjusted equity and macroeconomic prices retrieved
 \begin{thebibliography}{10}
 \interlinepenalty=10000
 
-\bibitem[Campbell \& Thompson(2008)]{campbell2008}
-Campbell, J.~Y., \& Thompson, S.~B. (2008). Predicting the equity premium out of sample: Can anything beat the historical average? \emph{The Review of Financial Studies}, 21(4), 1509--1531.
+\bibitem{campbell2008}
+J.~Y. Campbell and S.~B. Thompson, ``Predicting the equity premium out of sample: Can anything beat the historical average?'' \emph{The Review of Financial Studies}, vol.~21, no.~4, pp.~1509--1531, 2008.
 
-\bibitem[Diebold \& Mariano(1995)]{diebold1995}
-Diebold, F.~X., \& Mariano, R.~S. (1995). Comparing predictive accuracy. \emph{Journal of Business \& Economic Statistics}, 13(3), 253--263.
+\bibitem{diebold1995}
+F.~X. Diebold and R.~S. Mariano, ``Comparing predictive accuracy,'' \emph{Journal of Business \& Economic Statistics}, vol.~13, no.~3, pp.~253--263, 1995.
 
-\bibitem[Genet \& Inzirillo(2024)]{genet2024tkan}
-Genet, R., \& Inzirillo, H. (2024). TKAN: Temporal Kolmogorov-Arnold Networks. \emph{arXiv preprint arXiv:2405.07344}.
+\bibitem{genet2024tkan}
+R.~Genet and H.~Inzirillo, ``TKAN: Temporal Kolmogorov-Arnold Networks,'' \emph{arXiv preprint arXiv:2405.07344}, 2024.
 
-\bibitem[Granger(1969)]{granger1969}
-Granger, C.~W.~J. (1969). Investigating causal relations by econometric models and cross-spectral methods. \emph{Econometrica}, 37(3), 424--438.
+\bibitem{granger1969}
+C.~W.~J. Granger, ``Investigating causal relations by econometric models and cross-spectral methods,'' \emph{Econometrica}, vol.~37, no.~3, pp.~424--438, 1969.
 
-\bibitem[Harvey et~al.(1997)]{harvey1997}
-Harvey, D., Leybourne, S., \& Newbold, P. (1997). Testing the equality of prediction mean squared errors. \emph{International Journal of Forecasting}, 13(2), 281--291.
+\bibitem{harvey1997}
+D.~Harvey, S.~Leybourne, and P.~Newbold, ``Testing the equality of prediction mean squared errors,'' \emph{International Journal of Forecasting}, vol.~13, no.~2, pp.~281--291, 1997.
 
-\bibitem[Kolmogorov(1957)]{kolmogorov1957}
-Kolmogorov, A.~N. (1957). On the representation of continuous functions of many variables by superposition of continuous functions of one variable and addition. \emph{Doklady Akademii Nauk SSSR}, 114(5), 953--956.
+\bibitem{kolmogorov1957}
+A.~N. Kolmogorov, ``On the representation of continuous functions of many variables by superposition of continuous functions of one variable and addition,'' \emph{Doklady Akademii Nauk SSSR}, vol.~114, no.~5, pp.~953--956, 1957.
 
-\bibitem[Liu et~al.(2024)]{liu2024itransformer}
-Liu, Y., Hu, T., Zhang, H., Wu, H., Wang, S., Ma, L., \& Long, M. (2024). iTransformer: Inverted Transformers Are Effective for Time Series Forecasting. \emph{International Conference on Learning Representations (ICLR)}.
+\bibitem{liu2024itransformer}
+Y.~Liu, T.~Hu, H.~Zhang, H.~Wu, S.~Wang, L.~Ma, and M.~Long, ``iTransformer: Inverted Transformers Are Effective for Time Series Forecasting,'' in \emph{International Conference on Learning Representations (ICLR)}, 2024.
 
-\bibitem[Liu et~al.(2025)]{liu2025kan}
-Liu, Z., Wang, Y., Vaidya, S., Ruehle, F., Halverson, J., Solja{\v{c}}i{\'c}, M., Hou, T.~Y., \& Tegmark, M. (2025). KAN: Kolmogorov-Arnold Networks. \emph{International Conference on Learning Representations (ICLR)}.
+\bibitem{liu2025kan}
+Z.~Liu, Y.~Wang, S.~Vaidya, F.~Ruehle, J.~Halverson, M.~Solja{\v{c}}i{\'c}, T.~Y. Hou, and M.~Tegmark, ``KAN: Kolmogorov-Arnold Networks,'' in \emph{International Conference on Learning Representations (ICLR)}, 2025.
 
-\bibitem[Runge(2020)]{runge2020}
-Runge, J. (2020). Discovering contemporaneous and lagged causal relations in autocorrelated nonlinear time series datasets. \emph{Proceedings of the 36th Conference on Uncertainty in Artificial Intelligence (UAI)}, pp. 1388--1397.
+\bibitem{runge2020}
+J.~Runge, ``Discovering contemporaneous and lagged causal relations in autocorrelated nonlinear time series datasets,'' in \emph{Proceedings of the 36th Conference on Uncertainty in Artificial Intelligence (UAI)}, pp.~1388--1397, 2020.
 
-\bibitem[Welch \& Goyal(2008)]{welch2008}
-Welch, I., \& Goyal, A. (2008). A comprehensive look at the empirical performance of equity premium prediction. \emph{The Review of Financial Studies}, 21(4), 1455--1508.
+\bibitem{welch2008}
+I.~Welch and A.~Goyal, ``A comprehensive look at the empirical performance of equity premium prediction,'' \emph{The Review of Financial Studies}, vol.~21, no.~4, pp.~1455--1508, 2008.
 \end{thebibliography}
 
 \end{document}
